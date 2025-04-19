@@ -14,7 +14,11 @@ def generate_dockerfiles():
 
     for service in os.listdir("services"):
         path = "./services/" + service
-        deploy.generate_deploy(get_project_name(os.path.join(path, "CMakeLists.txt")), path)
+        deploy.generate_deploy(
+            get_project_name(os.path.join(path, "CMakeLists.txt")), 
+            path,
+            "./external/container.jsonnet")
+        
         print(os.path.join(path, "Dockerfile") + " created...")
 
 def generate_compose_file(network_name):

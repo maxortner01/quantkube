@@ -1,0 +1,34 @@
+local lib = import "../deploy/deploy.libsonnet";
+
+{
+    // Preliminary commands before we do anything with the libraries
+    prelim: [
+        lib.mkdir("external"),
+    ],
+    // Commands needed to get the libraries in a working state
+    libraries: [
+        {
+            name: "asio",
+            commands: [
+                lib.get("https://sourceforge.net/projects/asio/files/asio/1.30.2%20%28Stable%29/asio-1.30.2.tar.gz"),
+                lib.chain([ 
+                    lib.mkdir("external/asio"),
+                    lib.copy("./asio-1.30.2/include", "./external/asio/include", true),
+                ]),
+            ],
+        },
+        {
+            name: "flatbuffers",
+            commands: [
+                lib.get("https://github.com/google/flatbuffers/archive/refs/tags/v25.2.10.tar.gz"),
+                lib.cmake("flatbuffers-25.2.10", ["-DFLATBUFFERS_BUILD_SHAREDLIB=ON"]),
+                lib.chain([
+                    lib.mkdir("external/flatbuffers"),
+                    lib.copy("flatbuffers-25.2.10/flatc", "external/flatbuffers/flatc"), // copy the flatc binary
+                    lib.copy("flatbuffers-25.2.10/libflatbuffers.so", "external/flatbuffers/libflatbuffers.so"), // copy the shared lib
+                    lib.copy("flatbuffers-25.2.10/include", "external/flatbuffers/include", true), // copy the headers
+                ]),
+            ],
+        },
+    ],
+}
