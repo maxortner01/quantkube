@@ -25,6 +25,18 @@ def generate_compose_file(network_name):
         }
     }
 
+    # Get all the base containers
+    for container in os.listdir("containers"):
+        name = container.split(".")[-1]
+        compose_dict["services"][name] = {
+            "build": {
+                "context": "./containers",
+                "dockerfile": container
+            },
+            "image": name + "-env"
+        }
+
+    # Get the service containers
     for service_folder in os.listdir("services"):
         path = "./services/" + service_folder
         
@@ -37,6 +49,7 @@ def generate_compose_file(network_name):
                 "dockerfile": os.path.join(path, "Dockerfile")
             },
             "container_name": service,
+            "depends_on": ["base"],
             "networks": [network_name]
         }
 

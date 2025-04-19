@@ -8,6 +8,7 @@
 using asio::ip::tcp;
 
 int main() {
+    std::cout.setf(std::ios::unitbuf);
     std::cout << "Starting\n";
     flatbuffers::FlatBufferBuilder builder(1024);
 
