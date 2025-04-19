@@ -33,7 +33,8 @@ def generate_compose_file(network_name):
 
         config = {
             "build": {
-                "context": path
+                "context": ".",
+                "dockerfile": os.path.join(path, "Dockerfile")
             },
             "container_name": service,
             "networks": [network_name]
