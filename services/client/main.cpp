@@ -5,6 +5,7 @@
 using asio::ip::tcp;
 
 int main() {
+    std::cout << "client\n";
     try {
         asio::io_context io;
 
