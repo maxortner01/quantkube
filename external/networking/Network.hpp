@@ -28,7 +28,7 @@ struct Request
 
 struct ServerInstance
 {
-    std::unordered_map<std::string, std::function<std::shared_ptr<flatbuffers::FlatBufferBuilder>(const uint8_t*)>> endpoints;
+    std::unordered_map<std::string, std::function<void(flatbuffers::FlatBufferBuilder&, const uint8_t*)>> endpoints;
 
     const int thread_count = 5;
     bool running = true;
@@ -115,7 +115,7 @@ struct ServerInstance
     template<typename Req, typename Res>
     void register_endpoint(const std::string& endpoint, std::function<void(typename Res::NativeTableType*, const typename Req::NativeTableType*)> func)
     {
-        endpoints[endpoint] = [func](const uint8_t* data)
+        endpoints[endpoint] = [func](flatbuffers::FlatBufferBuilder& builder, const uint8_t* data)
         {
             typename Res::NativeTableType res;
             auto* req = flatbuffers::GetRoot<Req>(data);
@@ -129,17 +129,13 @@ struct ServerInstance
             auto offset = Res::Pack(payload_builder, &res);
             payload_builder.Finish(offset);
             
-            auto builder = std::make_shared<flatbuffers::FlatBufferBuilder>();
-            auto status = builder->CreateString("success");
-            auto payload_vec = builder->CreateVector(
+            auto payload_vec = builder.CreateVector(
                 payload_builder.GetBufferPointer(),
                 payload_builder.GetSize()
             );
 
-            auto response = App::CreateResponse(*builder, status, payload_vec);
-            builder->Finish(response);
-
-            return builder;
+            auto response = App::CreateResponse(builder, 0, payload_vec);
+            builder.Finish(response);
         };
     }
 
@@ -148,10 +144,21 @@ struct ServerInstance
         auto request = App::GetRequest(data);
         auto payload_vec = request->payload();
         std::cout << "Got endpoint " << request->endpoint()->str() << "\n";
-        auto res = endpoints.at(request->endpoint()->str())(payload_vec->Data());
+
+        // If the endpoint doesn't exist, we should create a 
+        auto builder = std::make_shared<flatbuffers::FlatBufferBuilder>();
+
+        const auto& endpoint = request->endpoint()->str();
+        if (!endpoints.count(endpoint))
+        {
+            auto response = App::CreateResponse(*builder, 1);
+            builder->Finish(response);
+        }
+        else
+            endpoints.at(endpoint)(*builder, payload_vec->Data());
 
         std::cout << "Writing response\n";
-        asio::write(*socket, asio::buffer(res->GetBufferPointer(), res->GetSize()));
+        asio::write(*socket, asio::buffer(builder->GetBufferPointer(), builder->GetSize()));
     }
 };
 
@@ -167,7 +174,8 @@ Request::Request(const uint8_t* data, size_t length, const std::shared_ptr<tcp::
 }
 
 template<typename Res>
-std::shared_ptr<typename Res::NativeTableType> get_response(const std::string& hostname, const std::string& endpoint, flatbuffers::FlatBufferBuilder& payload)
+std::pair<uint8_t, std::shared_ptr<typename Res::NativeTableType>>
+get_response(const std::string& hostname, const std::string& endpoint, flatbuffers::FlatBufferBuilder& payload)
 {
     // Build Request
     flatbuffers::FlatBufferBuilder builder;
@@ -198,8 +206,12 @@ std::shared_ptr<typename Res::NativeTableType> get_response(const std::string& h
     std::size_t length = socket.read_some(asio::buffer(response));
     
     auto* res = flatbuffers::GetRoot<App::Response>(response);
-    auto* res_payload = flatbuffers::GetRoot<Res>(res->payload()->data());
-    return std::shared_ptr<typename Res::NativeTableType>(res_payload->UnPack());
+
+    const Res* res_payload = nullptr;
+    if (!res->status())
+        res_payload = flatbuffers::GetRoot<Res>(res->payload()->data());
+    
+    return { res->status(), std::shared_ptr<typename Res::NativeTableType>((res_payload ? res_payload->UnPack() : nullptr)) };
 }   
 
 }

@@ -6,7 +6,7 @@ table Request {
 }
 
 table Response {
-  status: string;
+  status: ubyte;
   payload: [ubyte];
 }
 
