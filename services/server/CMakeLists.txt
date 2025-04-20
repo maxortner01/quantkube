@@ -21,5 +21,6 @@ target_include_directories(server
     PRIVATE
         ${CMAKE_SOURCE_DIR}/external/asio/include
         ${CMAKE_SOURCE_DIR}/external/flatbuffers/include
+        ${CMAKE_SOURCE_DIR}/external/networking
         ${CMAKE_SOURCE_DIR}/schemas
 )

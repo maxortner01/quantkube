@@ -27,12 +27,12 @@ def generate_external_container(external_container_jsonnet):
     content = ["FROM base-env AS external_deps"]
 
     for command in external["prelim"]:
-        content.append("RUN {}".format(command["command"]))
+        content.append("{} {}".format(command["docker"], command["command"]))
 
     for library in external["libraries"]:
         print("Adding {}".format(library["name"]))
         for command in library["commands"]:
-            content.append("RUN {}".format(command["command"]))
+            content.append("{} {}".format(command["docker"], command["command"]))
 
     return "\n".join(content)
 

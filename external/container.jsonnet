@@ -30,5 +30,11 @@ local lib = import "../deploy/deploy.libsonnet";
                 ]),
             ],
         },
+        {
+            name: "networking",
+            commands: [
+                lib.container_copy("./external/networking", "./external/networking"),
+            ],
+        },
     ],
 }
