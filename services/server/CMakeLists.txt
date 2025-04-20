@@ -8,7 +8,8 @@ add_executable(server main.cpp)
 
 target_link_directories(server 
     PRIVATE
-        ${CMAKE_SOURCE_DIR}/external/flatbuffers)
+        ${CMAKE_SOURCE_DIR}/external/flatbuffers
+)
 
 target_link_libraries(server
     PRIVATE

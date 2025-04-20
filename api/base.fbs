@@ -1,0 +1,13 @@
+namespace App;
+
+table Request {
+  endpoint: string;
+  payload: [ubyte];
+}
+
+table Response {
+  status: string;
+  payload: [ubyte];
+}
+
+root_type Request;

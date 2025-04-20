@@ -10,7 +10,7 @@ FROM base-env AS schemas
 COPY --from=external_deps /external/flatbuffers /external/flatbuffers
 
 COPY ./api ./api
-RUN ./external/flatbuffers/flatc --cpp -o ./schemas ./api/*.fbs 
+RUN ./external/flatbuffers/flatc --cpp --gen-mutable -o ./schemas ./api/*.fbs 
 
 # Compile and run the service
 FROM base-env

@@ -1,9 +1,0 @@
-namespace MyGame;
-
-table Monster {
-  id: int;
-  name: string;
-  hp: int;
-}
-
-root_type Monster;
