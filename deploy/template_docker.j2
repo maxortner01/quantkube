@@ -15,6 +15,7 @@ RUN ./external/flatbuffers/flatc --cpp --gen-object-api -o ./schemas ./api/*.fbs
 # Compile and run the service
 FROM base-env
 
+# external copy here
 COPY --from=external_deps /external /external
 COPY --from=schemas       /schemas  /schemas
 COPY {{ service_dir  }} .

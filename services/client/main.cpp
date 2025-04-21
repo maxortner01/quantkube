@@ -2,7 +2,9 @@
 #include <iostream>
 #include <flatbuffers/flatbuffers.h>
 #include <Network.hpp>
-#include <server_generated.h>
+#include <chrono>
+
+#include <timeseries_generated.h>
 
 using asio::ip::tcp;
 
@@ -14,17 +16,36 @@ int main() {
 
     std::cout << "constructing request\n";
     
-    flatbuffers::FlatBufferBuilder payload_builder;
-    auto username = payload_builder.CreateString("maxortner");
-    auto password = payload_builder.CreateString("password");
-    auto login = Server::CreateLoginRequest(payload_builder, username, password);
-    payload_builder.Finish(login);
+    using namespace std::chrono;
+    auto now = system_clock::now();
+    auto start_time = now - hours(5);
+    
+    Timeseries::PriceRequestT price_request;
+    price_request.company_name = "Acme Corp";
+    price_request.start_time   = util::time_point_to_double(start_time);
+    price_request.end_time     = util::time_point_to_double(now);
 
-    auto [code, response] = Network::get_response<Server::LoginResponse>("server", "login2", payload_builder);
-    if (!code)
-        std::cout << "Response success: " << ( response->success ? "True" : "False" ) << "\n";
-    else
-        std::cout << "Error code received: " << static_cast<int>(code) << "\n";
+    while (true)
+    {
+        try{
+            auto [code, response] = Network::get_response<Timeseries::PriceResponse, Timeseries::PriceRequest>("server", "get_prices", price_request);
+            if (!code)
+            {
+                std::cout << "Response success\n";
+                std::cout << "Got " << response->prices.size() << " price points\n";
+                for (const auto& price : response->prices)
+                {
+                    std::cout << "Company:   " << price->company_name << "\n";
+                    std::cout << "Timestamp: " << date::format("%F %T", util::double_to_time_point(price->time)) << "\n";
+                    std::cout << "Price:     $" << price->price << "\n";
+                }
+            }
+            else
+                std::cout << "Error code received: " << static_cast<int>(code) << "\n";
+        } catch (const std::exception& e) {
+            std::cerr << "Connection error: " << e.what() << "\n";
+        }
+    }
 
     return 0;
 }

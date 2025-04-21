@@ -46,5 +46,22 @@ local lib = import "../deploy/deploy.libsonnet";
                 ])
             ]
         },
+        {
+            name: "prometheus",
+            commands: [
+                lib.get("https://github.com/jupp0r/prometheus-cpp/releases/download/v1.3.0/prometheus-cpp-with-submodules.tar.gz"),
+                lib.cmake("prometheus-cpp-with-submodules", ["-DBUILD_SHARED_LIBS=ON"]),
+                lib.chain([
+                    lib.mkdir("external/prometheus"),
+                    lib.mkdir("external/prometheus/core"),
+                    lib.mkdir("external/prometheus/pull"),
+                    lib.mkdir("external/prometheus/push"),
+                    lib.copy("./prometheus-cpp-with-submodules/lib", "./external/prometheus/lib", true),
+                    lib.copy("./prometheus-cpp-with-submodules/core/include", "./external/prometheus/core/include", true),
+                    lib.copy("./prometheus-cpp-with-submodules/pull/include", "./external/prometheus/pull/include", true),
+                    lib.copy("./prometheus-cpp-with-submodules/push/include", "./external/prometheus/push/include", true)
+                ])
+            ]
+        }
     ],
 }

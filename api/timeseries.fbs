@@ -1,0 +1,19 @@
+namespace Timeseries;
+
+table PriceRequest {
+    company_name: string; // To be change to ticker eventuallys
+    start_time: double;
+    end_time: double;
+}
+
+table PriceEntry {
+    price: float;
+    company_name: string;
+    time: double;
+}
+
+table PriceResponse {
+    prices: [PriceEntry];
+}
+
+root_type PriceRequest;

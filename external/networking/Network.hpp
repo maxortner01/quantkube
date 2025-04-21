@@ -1,5 +1,7 @@
 #pragma once
 
+#include <date/date.h>
+
 #include <asio.hpp>
 #include <iostream>
 #include <unordered_map>
@@ -11,6 +13,25 @@
 #include <base_generated.h>
 
 using asio::ip::tcp;
+
+namespace util
+{
+    double time_point_to_double(std::chrono::system_clock::time_point tp) {
+        using namespace std::chrono;
+    
+        auto duration = tp.time_since_epoch();  // duration since 1970
+        auto micros = duration_cast<microseconds>(duration).count(); // total microseconds
+    
+        return micros / 1'000'000.0;  // Convert to seconds with fractions
+    }
+
+    std::chrono::system_clock::time_point double_to_time_point(double unix_ts) {
+        using namespace std::chrono;
+    
+        auto micros = static_cast<int64_t>(unix_ts * 1'000'000);
+        return system_clock::time_point{microseconds{micros}};
+    }
+}
 
 namespace Network
 {
@@ -54,7 +75,8 @@ struct ServerInstance
                             listen_lock.unlock();
                             f();
                         }
-                        listen_lock.unlock();
+                        else
+                            listen_lock.unlock();
 
                         // Then check requests
                         req_lock.lock();
@@ -65,7 +87,8 @@ struct ServerInstance
                             req_lock.unlock();
                             r->process(r);
                         }
-                        req_lock.unlock();
+                        else
+                            req_lock.unlock();
                     }
                 }));
         }
@@ -84,8 +107,8 @@ struct ServerInstance
         asio::io_context io;
 
         // Accept connections on port 8080
-        tcp::acceptor acceptor(io, tcp::endpoint(tcp::v4(), 8080));
-        std::cout << "Server is listening on port 8080...\n";
+        tcp::acceptor acceptor(io, tcp::endpoint(tcp::v4(), 5000));
+        std::cout << "Server is listening on port 5000...\n";
 
         while (running)
         {
@@ -173,16 +196,19 @@ Request::Request(const uint8_t* data, size_t length, const std::shared_ptr<tcp::
     };
 }
 
-template<typename Res>
+template<typename Res, typename Req>
 std::pair<uint8_t, std::shared_ptr<typename Res::NativeTableType>>
-get_response(const std::string& hostname, const std::string& endpoint, flatbuffers::FlatBufferBuilder& payload)
+get_response(const std::string& hostname, const std::string& endpoint, const typename Req::NativeTableType& payload)
 {
     // Build Request
-    flatbuffers::FlatBufferBuilder builder;
+    flatbuffers::FlatBufferBuilder payload_builder, builder;
+    auto offset = Req::Pack(payload_builder, &payload);
+    payload_builder.Finish(offset);
+
     auto e = builder.CreateString(endpoint);
     auto payload_vec = builder.CreateVector(
-        payload.GetBufferPointer(),
-        payload.GetSize()
+        payload_builder.GetBufferPointer(),
+        payload_builder.GetSize()
     );
 
     auto request = App::CreateRequest(builder, e, payload_vec);
@@ -191,7 +217,7 @@ get_response(const std::string& hostname, const std::string& endpoint, flatbuffe
     asio::io_context io;
 
     tcp::resolver resolver(io);
-    auto endpoints = resolver.resolve(hostname, "8080");
+    auto endpoints = resolver.resolve(hostname, "5000");
 
     tcp::socket socket(io);
     asio::connect(socket, endpoints);

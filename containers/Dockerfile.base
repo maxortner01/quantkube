@@ -6,6 +6,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     git \
     build-essential \
-    libpqxx-dev \
-    postgresql-server-dev-13
+    postgresql-server-dev-13 \
+    libcurl4-openssl-dev \
+    zlib1g-dev
 

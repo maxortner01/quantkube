@@ -22,7 +22,7 @@ local chain(commands) = {
   command: std.join(" && ", [c.command for c in commands])
 };
 
-local cmake(dir, opts) = {
+local cmake(dir, opts = []) = {
   docker: "RUN",
   command: "cd " + dir + " && cmake " + std.join(" ", opts) + " . && make -j"
 };

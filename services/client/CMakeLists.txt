@@ -19,6 +19,7 @@ target_link_libraries(client
 target_include_directories(client
     PRIVATE
         ${CMAKE_SOURCE_DIR}/external/asio/include
+        ${CMAKE_SOURCE_DIR}/external/date/include
         ${CMAKE_SOURCE_DIR}/external/flatbuffers/include
         ${CMAKE_SOURCE_DIR}/external/networking
         ${CMAKE_SOURCE_DIR}/schemas

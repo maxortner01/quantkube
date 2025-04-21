@@ -26,7 +26,8 @@ def generate_compose_file(network_name):
         "services": {},
         "networks": {
             network_name: {}
-        }
+        },
+        "volumes": {"grafana-storage": {}}
     }
 
     # Get all the base containers
