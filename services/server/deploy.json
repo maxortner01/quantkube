@@ -1,0 +1,27 @@
+{
+    "config": {
+        "depends_on": ["timescaledb"],
+        "environment": {
+            "POSTGRES_HOST": "timescaledb",
+            "POSTGRES_DB": "timeseries",
+            "POSTGRES_USER": "user",
+            "POSTGRES_PASSWORD": "password"
+        }
+    },
+    "containers": [
+        {
+            "name": "timescaledb",
+            "config": {
+                "image": "timescale/timescaledb:latest-pg14",
+                "container_name": "timescaledb",
+                "environment": {
+                    "POSTGRES_DB": "timeseries",
+                    "POSTGRES_USER": "user",
+                    "POSTGRES_PASSWORD": "password"
+                },
+                "ports": ["5432:5432"],
+                "networks": ["cppnet"]
+            }
+        }
+    ]
+}

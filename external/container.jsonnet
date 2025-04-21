@@ -36,5 +36,15 @@ local lib = import "../deploy/deploy.libsonnet";
                 lib.container_copy("./external/networking", "./external/networking"),
             ],
         },
+        {
+            name: "date",
+            commands: [
+                lib.get("https://github.com/HowardHinnant/date/archive/refs/tags/v3.0.3.tar.gz"),
+                lib.chain([
+                    lib.mkdir("external/date"),
+                    lib.copy("./date-3.0.3/include", "./external/date/include", true)
+                ])
+            ]
+        },
     ],
 }

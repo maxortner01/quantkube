@@ -63,7 +63,18 @@ def generate_compose_file(network_name):
         if os.path.isfile(deploy_json):
             print(" with extra deploy settings...", end="")
             with open(deploy_json) as f:
-                config.update(json.load(f))
+                content = json.load(f)
+
+            # Take config key as an override for this service
+            if "config" in content:
+                config.update(content["config"])
+
+            # Otherwise, the deploy json might specify another container
+            if "containers" in content:
+                for container in content["containers"]:
+                    compose_dict["services"][container["name"]] = container["config"]
+
+            
 
         compose_dict["services"][service] = config
         print("")

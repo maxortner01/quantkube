@@ -2,9 +2,15 @@ cmake_minimum_required(VERSION 3.8)
 
 project(server)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
+find_package(PostgreSQL REQUIRED)
 
-add_executable(server main.cpp)
+add_executable(server 
+    ${CMAKE_SOURCE_DIR}/src/db/Companies.cpp
+    ${CMAKE_SOURCE_DIR}/src/db/Prices.cpp
+
+    ${CMAKE_SOURCE_DIR}/src/main.cpp
+)
 
 target_link_directories(server 
     PRIVATE
@@ -15,12 +21,15 @@ target_link_libraries(server
     PRIVATE
         flatbuffers
         pthread
+        PostgreSQL::PostgreSQL
 )
 
 target_include_directories(server
     PRIVATE
         ${CMAKE_SOURCE_DIR}/external/asio/include
+        ${CMAKE_SOURCE_DIR}/external/date/include
         ${CMAKE_SOURCE_DIR}/external/flatbuffers/include
         ${CMAKE_SOURCE_DIR}/external/networking
         ${CMAKE_SOURCE_DIR}/schemas
+        ${CMAKE_SOURCE_DIR}/src
 )

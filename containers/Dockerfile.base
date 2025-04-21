@@ -5,4 +5,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     cmake \
     wget \
     git \
-    build-essential
+    build-essential \
+    libpqxx-dev \
+    postgresql-server-dev-13
+
