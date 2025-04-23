@@ -1,7 +1,7 @@
 // client.cpp
 #include <iostream>
 #include <flatbuffers/flatbuffers.h>
-#include <Network.hpp>
+#include <Client.hpp>
 #include <chrono>
 
 #include <timeseries_generated.h>

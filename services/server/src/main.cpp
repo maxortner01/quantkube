@@ -1,10 +1,6 @@
 #include <iostream>
-#include <Network.hpp>
+#include <Server.hpp>
 #include <timeseries_generated.h>
-
-#include <prometheus/exposer.h>
-#include <prometheus/registry.h>
-#include <prometheus/counter.h>
 
 #include <date/date.h>
 
@@ -12,25 +8,12 @@
 
 // Next up:
 //   1. Have the PostgreSQL database use a volume mounted on the PC so we get persistant data
-
+//   2. Endpoint latency from server by default
 
 int main() {
     std::cout.setf(std::ios::unitbuf);
-
-    prometheus::Exposer exposer{"0.0.0.0:8080"};
-    auto registry = std::make_shared<prometheus::Registry>();
-
-    // Add a counter family to the registry
-    auto& packet_counter_family = prometheus::BuildCounter()
-                                      .Name("packets_processed_total")
-                                      .Help("Total packets processed")
-                                      .Register(*registry);
-
-    // Add a label to the counter
-    auto& packet_counter = packet_counter_family.Add({{"type", "tcp"}});
-
-    // Register the registry to be exposed
-    exposer.RegisterCollectable(registry);
+    
+    Network::ServerInstance instance;
 
     auto database = std::make_shared<db::Database>(
         std::getenv("POSTGRES_HOST"), 
@@ -41,17 +24,10 @@ int main() {
     db::Companies companies(database);
     db::Prices prices(database);
 
-    uint32_t test = 0;
-
-    Network::ServerInstance instance;
     instance.register_endpoint<Timeseries::PriceRequest, Timeseries::PriceResponse>("get_prices", 
         [&](Timeseries::PriceResponseT* res,
            const Timeseries::PriceRequestT* req)
         {
-            packet_counter.Increment();
-            test++;
-            std::cout << test << "\n";
-
             const auto start_time = util::double_to_time_point(req->start_time);
             const auto end_time   = util::double_to_time_point(req->end_time);
             

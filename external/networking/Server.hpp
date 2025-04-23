@@ -8,6 +8,11 @@
 
 #include <flatbuffers/flatbuffers.h>
 
+#include <prometheus/exposer.h>
+#include <prometheus/registry.h>
+#include <prometheus/counter.h>
+#include <prometheus/gauge.h>
+
 #include <thread>
 
 #include <base_generated.h>
@@ -40,12 +45,18 @@ struct ServerInstance;
 
 struct Request
 {
+    std::chrono::time_point<std::chrono::high_resolution_clock> request_time;
     std::shared_ptr<tcp::socket> socket;
     std::vector<uint8_t> buffer;
     std::function<void(std::shared_ptr<Request>)> process;
 
     Request(const uint8_t* data, size_t length, const std::shared_ptr<tcp::socket>& s, ServerInstance* server_instance);
 };
+
+template<typename T>
+std::shared_ptr<T> SharedFromReference(T& ref) {
+    return std::shared_ptr<T>(&ref, [](T*) {});
+}
 
 struct ServerInstance
 {
@@ -57,9 +68,27 @@ struct ServerInstance
     std::vector<std::function<void()>> listeners;
     std::vector<std::shared_ptr<Request>> requests;
     std::vector<std::thread> threads;
+    
+    prometheus::Exposer exposer;
+    std::shared_ptr<prometheus::Registry> registry;
+    std::shared_ptr<prometheus::Family<prometheus::Gauge>> latency_family;
+    std::unordered_map<std::string, prometheus::Gauge*> latency_metrics;
 
-    ServerInstance()
+    ServerInstance() :
+        exposer{"0.0.0.0:8080"},
+        registry(std::make_shared<prometheus::Registry>())
     {
+        exposer.RegisterCollectable(registry);
+
+        latency_family = SharedFromReference(
+            prometheus::BuildGauge()
+                .Name("function_latency_seconds")
+                .Help("Latency of endpoints")
+                .Labels({})
+                .Register(*registry)
+        );
+
+        // Set up the threads
         for (int i = 0; i < thread_count; i++)
         {
             threads.push_back(std::thread([this]()
@@ -160,9 +189,11 @@ struct ServerInstance
             auto response = App::CreateResponse(builder, 0, payload_vec);
             builder.Finish(response);
         };
+
+        latency_metrics[endpoint] = &latency_family->Add({{ "endpoint", endpoint }});
     }
 
-    void process_request(std::shared_ptr<tcp::socket> socket, const uint8_t* data) const
+    std::string process_request(std::shared_ptr<tcp::socket> socket, const uint8_t* data) const
     {
         auto request = App::GetRequest(data);
         auto payload_vec = request->payload();
@@ -182,17 +213,27 @@ struct ServerInstance
 
         std::cout << "Writing response\n";
         asio::write(*socket, asio::buffer(builder->GetBufferPointer(), builder->GetSize()));
+
+        return request->endpoint()->str();
     }
 };
 
 Request::Request(const uint8_t* data, size_t length, const std::shared_ptr<tcp::socket>& s, ServerInstance* server_instance) :
-    socket(s)
+    socket(s),
+    request_time(std::chrono::high_resolution_clock::now())
 {
     buffer.resize(length);
     std::copy(data, data + length, buffer.begin());
     process = [server_instance](std::shared_ptr<Request> req)
     {
-        server_instance->process_request(req->socket, &req->buffer[0]);
+        const auto endpoint = server_instance->process_request(req->socket, &req->buffer[0]);
+        
+        if (server_instance->latency_metrics.count(endpoint))
+        {
+            const auto now = std::chrono::high_resolution_clock::now();
+            std::chrono::duration<double> latency = now - req->request_time;
+            server_instance->latency_metrics[endpoint]->Set(latency.count());
+        }
     };
 }
 
