@@ -47,7 +47,12 @@ Prices::get_prices(
         ORDER BY time ASC
     )";
 
-    assert(_db->prepare("get_price_data", price_query, 3));
+    if (!_db->prepare("get_price_data", price_query, 3))
+    {
+        std::cout << "Failed to prepare get_price_data!\n";
+        return {};
+    }
+
     auto prices = _db->get_rows<std::string, float>("get_price_data", { 
         std::to_string(company_id).c_str(),
         std::to_string(start_ts).c_str(),

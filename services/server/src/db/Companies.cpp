@@ -11,7 +11,11 @@ Companies::get_id(const std::string& company_name) const
     PGconn* conn = _db->conn;
 
     const std::string query = "SELECT id FROM companies WHERE name = $1";
-    assert(_db->prepare("get_company_id", query, 1));
+    if (!_db->prepare("get_company_id", query, 1))
+    {
+        std::cout << "Failed to prepare statement!\n";
+        return -1;
+    }
 
     auto response = _db->get_row<int32_t>("get_company_id", { company_name.c_str() });
     if (!response) return -1;

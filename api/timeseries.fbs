@@ -13,7 +13,12 @@ table PriceEntry {
 }
 
 table PriceResponse {
-    prices: [PriceEntry];
+
+    company_names: [string]; // company names requested
+    company_indices: [uint]; // as many company names, reports first index of data
+    data_count: [uint]; // as many company names, reports quantity of data points
+    prices: [float]; // as many as sum(data_count)
+    times: [double]; // as many as sum(data_count)
 }
 
 root_type PriceRequest;

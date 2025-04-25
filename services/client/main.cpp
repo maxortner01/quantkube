@@ -33,11 +33,11 @@ int main() {
             {
                 std::cout << "Response success\n";
                 std::cout << "Got " << response->prices.size() << " price points\n";
-                for (const auto& price : response->prices)
+                for (int i = 0; i < response->data_count[0]; i++)
                 {
-                    std::cout << "Company:   " << price->company_name << "\n";
-                    std::cout << "Timestamp: " << date::format("%F %T", util::double_to_time_point(price->time)) << "\n";
-                    std::cout << "Price:     $" << price->price << "\n";
+                    std::cout << "Company:   " << response->company_names[0] << "\n";
+                    std::cout << "Timestamp: " << date::format("%F %T", util::double_to_time_point(response->times[i])) << "\n";
+                    std::cout << "Price:     $" << response->prices[i] << "\n";
                 }
             }
             else

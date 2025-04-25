@@ -1,42 +1,37 @@
-// Define the copy function
-local copy(from, to, directory = false) = {
-  docker: "RUN",
-  command: "cp" + (if directory then " -r" else "") + " " + from + " " + to
+local base_container(name, depends = [], networks = [], env = {}) = {
+    config: {
+        container_name: name,
+        depends_on: depends,
+        networks:   networks,
+        environment: env
+    }
 };
 
-local get(url) = {
-  local parts = std.split(url, "/"),
-  local filename = parts[std.length(parts) - 1],
-
-  docker: "RUN",
-  command: "wget " + url + " --no-check-certificate && tar -xvzf " + filename
+local image_container(name, image, networks = [], volumes = [], ports = [], env = {}, command = [], depends = []) = {
+    config: {
+        container_name: name,
+        image: image,
+        networks: networks,
+        volumes: volumes,
+        ports: ports,
+        environment: env,
+        command: command,
+        depends_on: depends
+    }
 };
 
-local mkdir(dir) = {
-  docker: "RUN",
-  command: "mkdir " + dir
-};
-
-local chain(commands) = {
-  docker: "RUN",
-  command: std.join(" && ", [c.command for c in commands])
-};
-
-local cmake(dir, opts = []) = {
-  docker: "RUN",
-  command: "cd " + dir + " && cmake " + std.join(" ", opts) + " . && make -j"
-};
-
-local container_copy(from, to) = {
-  docker: "COPY",
-  command: from + " " + to
-};
-
+local build_container(name, directory, depends = [], networks = [], env = {}) = 
+base_container(name, depends, networks, env) +
 {
-    copy:: copy,
-    get:: get,
-    mkdir:: mkdir,
-    chain:: chain,
-    cmake:: cmake,
-    container_copy:: container_copy
+    config+: {
+        build: {
+            context: ".",
+            dockerfile: directory + "/Dockerfile"
+        }
+    }
+};  
+
+{   
+    image_container:: image_container,
+    build_container:: build_container
 }
