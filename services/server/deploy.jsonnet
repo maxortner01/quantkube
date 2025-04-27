@@ -1,6 +1,7 @@
 local svc    = import "../../deploy/service.libsonnet";
 local deploy = import "../../deploy/deploy.libsonnet";
 
+local directory = svc.get_dir(std.thisFile);
 local service_name = "server";
 local db_env = {
     POSTGRES_DB: "timeseries",
@@ -10,6 +11,7 @@ local db_env = {
 
 svc.cpp_program(
     name     = service_name, 
+    path     = directory,
     sources  = ["src/main.cpp", "src/db/Companies.cpp", "src/db/Prices.cpp"], 
     includes = ["src"],
     external = svc.registered_dependencies(
@@ -19,37 +21,10 @@ svc.cpp_program(
 ) +
 deploy.build_container(
     name      = service_name,
-    directory = "./services/server",
+    directory = directory,
     depends   = ["base", "timescaledb"],
     networks  = ["cppnet"],
     env       = {
         POSTGRES_HOST: "timescaledb"
     } + db_env
-) + {
-    dependent_containers: [
-        deploy.image_container(
-            name     = "timescaledb",
-            image    = "timescale/timescaledb:latest-pg14",
-            env      = db_env,
-            ports    = ["5432:5432"],
-            networks = ["cppnet"],
-            volumes  = ["/home/mortner/quantkube/volumes/db-data:/var/lib/postgresql/data"]
-        ),
-        deploy.image_container(
-            name     = "prometheus",
-            image    = "prom/prometheus:latest",
-            volumes  = ["./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml"],
-            command  = ["--config.file=/etc/prometheus/prometheus.yml"],
-            ports    = ["9090:9090"],
-            networks = ["cppnet"]
-        ),
-        deploy.image_container(
-            image      = "grafana/grafana:latest",
-            name       = "grafana",
-            ports      = ["3000:3000"],
-            networks   = ["cppnet"],
-            depends    = ["prometheus"],
-            volumes    = ["grafana-storage:/var/lib/grafana"]
-        )
-    ]
-}
+)

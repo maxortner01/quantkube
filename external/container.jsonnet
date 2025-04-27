@@ -2,11 +2,21 @@ local lib = import "../deploy/commands.libsonnet";
 
 local external_folder = "external";
 
+local schema(language) = {
+    name: "schemas_" + language,
+    commands: [
+        lib.container_copy("/flatbuffers/flatc", "/flatc", ["--from=dep_flatbuffers"]),
+        lib.container_copy("./api", "./api"),
+        lib.run("./flatc --" + language + " --gen-object-api -o ./schemas ./api/*.fbs ")
+    ],
+    copy_from: "schemas",
+    copy_to: "schemas",
+    directories: {
+        includes: [""]
+    }
+};
+
 {
-    // Preliminary commands before we do anything with the libraries
-    //prelim: [
-    //    lib.mkdir(external_folder),
-    //],
     copy_to: external_folder, // should be able to overwrite this per container
     // Commands needed to get the libraries in a working state
     libraries: [
@@ -95,18 +105,6 @@ local external_folder = "external";
                 "prometheus-cpp-push",
             ]
         },
-        {
-            name: "schemas_cpp",
-            commands: [
-                lib.container_copy("/flatbuffers/flatc", "/flatc", ["--from=dep_flatbuffers"]),
-                lib.container_copy("./api", "./api"),
-                lib.run("./flatc --cpp --gen-object-api -o ./schemas ./api/*.fbs ")
-            ],
-            copy_from: "schemas",
-            copy_to: "schemas",
-            directories: {
-                includes: [""]
-            }
-        }
+        schema("cpp"), schema("python")
     ],
 }

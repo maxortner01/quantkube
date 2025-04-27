@@ -92,26 +92,19 @@ class Dependencies:
         return binaries
         
 class Service:
-    def __init__(self, service_dir):
-        # Render the service config json
-        assert os.path.exists(service_dir), f"Service directory '{service_dir}' does not exist!"
-        self.directory = service_dir
-
-        deploy_jsonnet = os.path.join(service_dir, "deploy.jsonnet")
-        assert os.path.exists(deploy_jsonnet), f"Service deployment '{deploy_jsonnet}' does not exist!"
-        self.config = jsonnet_to_json(deploy_jsonnet)
+    def __init__(self, binary, container):
+        self.binary = binary
+        self.container = container
 
     def prerender_build(self):
-        if "build" not in self.config["binary"]: return []
-        return [ f"{b['docker']} {b['command']}" for b in self.config["binary"]["build"] ]
+        if "build" not in self.binary: return []
+        return [ f"{b['docker']} {b['command']}" for b in self.binary["build"] ]
     
     def get_containers(self):
-        r = { c["config"]["container_name"]: c["config"] for c in self.config.get("dependent_containers", []) }
-        r[self.config["binary"]["name"]] = self.config['config']
-        return r
+        return { self.binary["name"]: self.container["config"] }
 
     def render_dockerfile(self, deps: Dependencies):
-        content, dep_copy = deps.prerender(self.config["binary"]["dependencies"])
+        content, dep_copy = deps.prerender(self.binary["dependencies"])
 
         content += ["FROM base-env", ""]
 
@@ -119,33 +112,33 @@ class Service:
         content += dep_copy
 
         # Copy in service files
-        content += [f"COPY {self.directory} .", ""]
+        content += [f"COPY {self.binary['path']} .", ""]
 
         # Build the service
         content += self.prerender_build()
 
         # Run the service
-        content += [f"ENTRYPOINT [\"./{self.config["binary"]['name']}\"]"]
+        content += [f"ENTRYPOINT [\"./{self.binary['name']}\"]"]
 
         return "\n".join(content)
     
     def render_cmake(self, deps: Dependencies):
         def make_str(prefix, visibility, content):
-            return f"{prefix}({self.config["binary"]['name']} {visibility}\n" + "\n".join([ f"\t{c}" for c in content ]) + ")\n"
+            return f"{prefix}({self.binary['name']} {visibility}\n" + "\n".join([ f"\t{c}" for c in content ]) + ")\n"
 
-        includes, libraries = deps.get_directories(self.config["binary"]["dependencies"])
-        packages = [ e['name'] for e in self.config["binary"]["dependencies"] if e["type"] == "external" ]
+        includes, libraries = deps.get_directories(self.binary["dependencies"])
+        packages = [ e['name'] for e in self.binary["dependencies"] if e["type"] == "external" ]
 
-        content = ["cmake_minimum_required(VERSION 3.8)", "", f"project({self.config["binary"]['name']})", "", "set(CMAKE_CXX_STANDARD 20)", ""]
+        content = ["cmake_minimum_required(VERSION 3.8)", "", f"project({self.binary['name']})", "", "set(CMAKE_CXX_STANDARD 20)", ""]
 
         for p in packages:
             content.append(f"find_package({p} REQUIRED)")
         content.append("")
 
-        content += [make_str("add_executable", "", [ "${CMAKE_SOURCE_DIR}/" + s for s in self.config["binary"]["sources"] ]), ""]
-        content += [make_str("target_include_directories", "PRIVATE", [ "${CMAKE_SOURCE_DIR}" + i for i in includes + self.config["binary"].get("includes", []) ]), ""]
+        content += [make_str("add_executable", "", [ "${CMAKE_SOURCE_DIR}/" + s for s in self.binary["sources"] ]), ""]
+        content += [make_str("target_include_directories", "PRIVATE", [ "${CMAKE_SOURCE_DIR}" + i for i in includes + self.binary.get("includes", []) ]), ""]
         content += [make_str("target_link_directories", "PRIVATE", [ "${CMAKE_SOURCE_DIR}" + i for i in libraries ]), ""]
-        content += [make_str("target_link_libraries", "PRIVATE", deps.get_binaries(self.config["binary"]["dependencies"]) + [ f"{e}::{e}" for e in packages ] + ["pthread"])] # Need to get smarter about how we add in find_package dependencies
+        content += [make_str("target_link_libraries", "PRIVATE", deps.get_binaries(self.binary["dependencies"]) + [ f"{e}::{e}" for e in packages ] + ["pthread"])] # Need to get smarter about how we add in find_package dependencies
 
         return "\n".join(content)
 
@@ -169,19 +162,25 @@ if __name__ == "__main__":
             "image": name + "-env"
         }
 
-    for service in os.listdir("./services"):
-        svc = Service(os.path.join("./services", service))
+    deploy = jsonnet_to_json("./deploy.jsonnet")
+    services = list(deploy["services"].keys())
 
-        compose["services"].update(svc.get_containers())
+    for service, container in [ (deploy["services"][k], deploy["containers"][k]) for k in services ]:
+        svc = Service(service, container)
         
+        compose["services"].update(svc.get_containers())
+
         files = {
             "Dockerfile":     svc.render_dockerfile(deps),
             "CMakeLists.txt": svc.render_cmake(deps)
         }
 
         for fn, content in files.items():
-            with open(os.path.join("./services", service, fn), "w") as f:
+            with open(os.path.join("./services", service["name"], fn), "w") as f:
                 f.write(content)
+
+    for k, container in [ (k, deploy["containers"][k]) for k in deploy["containers"] if k not in services ]:
+        compose["services"][k] = container["config"]
 
     for service, config in compose["services"].items():
         compose["volumes"].update({ name: {} for name in [ v.split(":")[0] for v in config.get("volumes", []) if ":" in v and "/" not in v.split(":")[0] ] })
